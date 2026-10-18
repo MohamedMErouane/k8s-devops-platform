@@ -1,0 +1,36 @@
+# Rendered at container start by the official nginx image (envsubst on *.template).
+# API_UPSTREAM is the in-cluster Service DNS name, e.g. http://linkly-api:8080
+server {
+    listen 8080;
+    server_name _;
+    server_tokens off;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    location = / {
+        root /usr/share/nginx/html;
+        try_files /index.html =404;
+    }
+
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    # Metrics are scraped in-cluster by Prometheus, never exposed publicly.
+    location = /metrics {
+        return 404;
+    }
+
+    # Everything else (API, probes, short-link redirects) goes to the API.
+    location / {
+        proxy_pass ${API_UPSTREAM};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 15s;
+    }
+}

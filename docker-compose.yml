@@ -1,0 +1,36 @@
+# Local development: the full stack on one machine.
+#   docker compose up --build   ->   http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: linkly
+      POSTGRES_PASSWORD: linkly
+      POSTGRES_DB: linkly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linkly"]
+      interval: 5s
+      retries: 10
+
+  linkly-api:
+    build: ./app/api
+    environment:
+      DATABASE_URL: postgres://linkly:linkly@db:5432/linkly
+      PUBLIC_BASE_URL: http://localhost:8080
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./app/web
+    environment:
+      API_UPSTREAM: http://linkly-api:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - linkly-api
+
+volumes:
+  pgdata:

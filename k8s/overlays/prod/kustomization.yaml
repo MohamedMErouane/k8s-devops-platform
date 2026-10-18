@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: linkly
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+patches:
+  - target: { kind: Deployment, name: linkly-api }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: { cpu: 250m, memory: 192Mi }
+          limits: { memory: 384Mi }
+  - target: { kind: HorizontalPodAutoscaler, name: linkly-api }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  - target: { kind: Ingress, name: linkly }
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: linkly.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [linkly.example.com]
+            secretName: linkly-tls
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt
+
+configMapGenerator:
+  - name: linkly-config
+    behavior: merge
+    literals:
+      - PUBLIC_BASE_URL=https://linkly.example.com
+
+# Release tags are pinned by the CD pipeline (kustomize edit set image ...@sha256).
+images:
+  - name: ghcr.io/mohamedmerouane/linkly-api
+    newTag: "1.0.0"
+  - name: ghcr.io/mohamedmerouane/linkly-web
+    newTag: "1.0.0"

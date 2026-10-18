@@ -1,0 +1,40 @@
+# SLO-style alerts on the RED metrics exported by the API.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: linkly-api
+spec:
+  groups:
+    - name: linkly-api.rules
+      rules:
+        - record: linkly:http_requests:rate5m
+          expr: sum by (route, status) (rate(linkly_http_request_duration_seconds_count[5m]))
+
+        - alert: LinklyHighErrorRate
+          expr: |
+            sum(rate(linkly_http_request_duration_seconds_count{status=~"5.."}[5m]))
+              /
+            clamp_min(sum(rate(linkly_http_request_duration_seconds_count[5m])), 1e-9) > 0.05
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: More than 5% of Linkly API requests are failing
+            runbook_url: https://github.com/MohamedMErouane/k8s-devops-platform/blob/main/docs/runbook.md#high-error-rate
+
+        - alert: LinklyHighLatencyP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(linkly_http_request_duration_seconds_bucket[5m]))) > 0.5
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: Linkly API p95 latency is above 500 ms
+            runbook_url: https://github.com/MohamedMErouane/k8s-devops-platform/blob/main/docs/runbook.md#high-latency
+
+        - alert: LinklyApiDown
+          expr: absent(up{job="linkly-api"} == 1)
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: No Linkly API target is being scraped
+            runbook_url: https://github.com/MohamedMErouane/k8s-devops-platform/blob/main/docs/runbook.md#api-down

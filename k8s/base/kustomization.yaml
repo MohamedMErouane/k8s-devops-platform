@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: linkly
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
+
+resources:
+  - api.yaml
+  - web.yaml
+  - postgres.yaml
+  - ingress.yaml
+  - network-policies.yaml
+
+configMapGenerator:
+  - name: linkly-config
+    literals:
+      - LOG_LEVEL=info
+      - PUBLIC_BASE_URL=http://linkly.localtest.me
+      - SHUTDOWN_GRACE_MS=20000
+
+# Dev-only credentials. Overlays replace these; production uses an external
+# secret store (see docs/architecture.md) — never commit real secrets.
+secretGenerator:
+  - name: linkly-db
+    literals:
+      - POSTGRES_USER=linkly
+      - POSTGRES_PASSWORD=change-me-in-overlay
+      - POSTGRES_DB=linkly
+      - DATABASE_URL=postgres://linkly:change-me-in-overlay@postgres:5432/linkly
+
+images:
+  - name: ghcr.io/mohamedmerouane/linkly-api
+    newTag: latest
+  - name: ghcr.io/mohamedmerouane/linkly-web
+    newTag: latest
