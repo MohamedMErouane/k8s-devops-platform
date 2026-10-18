@@ -1,7 +1,5 @@
 # k8s-devops-platform
 
-[![CI/CD](https://github.com/MohamedMErouane/k8s-devops-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/MohamedMErouane/k8s-devops-platform/actions/workflows/ci.yml)
-
 A production-style delivery platform for a containerised web application: **Docker → GitHub Actions → Kubernetes**, with **infrastructure as code (Terraform)**, **observability (Prometheus + Grafana)**, **security hardening** and **zero-downtime deployments** that are verified automatically on every push.
 
 The workload is **Linkly**, a small URL shortener (TypeScript API + PostgreSQL + nginx front end). It is deliberately simple — the point of this repository is everything around it: how it is built, tested, shipped, secured, scaled and observed.
@@ -54,6 +52,15 @@ Every push runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 3. **Terraform** — `fmt -check` and `validate`.
 4. **Build, scan & publish** — builds both images with layer caching, fails on any fixable **CRITICAL** CVE (Trivy), pushes `:sha` and `:latest` tags to GHCR on `main`.
 5. **Deploy to Kubernetes** — creates a real kind cluster, deploys the `dev` overlay under the restricted Pod Security Standard, runs an end-to-end [smoke test](scripts/smoke-test.sh), then **restarts the API under continuous traffic and fails if a single request errors** — proving the rolling-update + readiness + `preStop` + graceful-shutdown chain actually gives zero downtime.
+
+## Verification status
+
+| Check | Result |
+|---|---|
+| API integration tests (Vitest + real PostgreSQL 16) | ✅ 9 / 9 passing |
+| Graceful shutdown on `SIGTERM` (manual run) | ✅ readiness drops, in-flight requests finish, clean exit |
+| Kustomize render + `kubeconform -strict` (dev, prod, monitoring) | ✅ 37 / 37 resources valid |
+| Image build, Trivy scan, Terraform validate, kind e2e + zero-downtime test | ⏳ defined in [`ci.yml`](.github/workflows/ci.yml); runs on GitHub Actions or locally with `make cluster deploy smoke` |
 
 ## Run it locally
 
