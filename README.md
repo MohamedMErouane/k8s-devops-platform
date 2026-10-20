@@ -43,6 +43,10 @@ flowchart LR
 | **Observability** | ServiceMonitor, PrometheusRule (error rate, p95 latency, API down — each linked to the runbook), Grafana dashboard as code |
 | **CI/CD** | 5 GitHub Actions jobs — see below |
 
+![Architecture and CI/CD pipeline](docs/img/architecture.webp)
+
+<p align="center"><img src="docs/img/linkly-app.webp" alt="Linkly web UI" width="560"><br><em>Linkly, the demo workload</em></p>
+
 ## The pipeline
 
 Every push runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
